@@ -134,7 +134,7 @@ require_once __DIR__ . '/includes/header.php';
           <td><?= e($r['tenant_name']) ?></td>
           <td><?= e(french_month((int)$r['period_month'], (int)$r['period_year'])) ?></td>
           <td><?= money((float)$r['total_amount']) ?></td>
-          <td><a href="/pages/receipt_download.php?id=<?= $r['id'] ?>" class="btn btn-ghost btn-sm">PDF</a></td>
+          <td><a href="/pages/receipt_download.php?id=<?= $r['id'] ?>&action=pdf" class="btn btn-ghost btn-sm" target="_blank">PDF</a></td>
         </tr>
         <?php endforeach ?>
       </tbody>

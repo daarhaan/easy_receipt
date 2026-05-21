@@ -159,7 +159,16 @@ require_once __DIR__ . '/../includes/header.php';
         <td><?= money((float)$r['charges_amount']) ?></td>
         <td><strong><?= money((float)$r['total_amount']) ?></strong></td>
         <td><?= french_date($r['payment_date']) ?></td>
-        <td><a href="/pages/receipt_download.php?id=<?= $r['id'] ?>" class="btn btn-ghost btn-sm">PDF</a></td>
+        <td style="white-space:nowrap">
+          <a href="/pages/receipt_download.php?id=<?= $r['id'] ?>&action=pdf" class="btn btn-ghost btn-sm" target="_blank">PDF</a>
+          <form method="post" action="/pages/receipts.php" style="display:inline"
+                onsubmit="return confirm('Supprimer cette quittance ?')">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= $r['id'] ?>">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+          </form>
+        </td>
       </tr>
       <?php endforeach ?>
       </tbody>

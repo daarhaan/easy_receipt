@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $stmt->execute([$flat_id, $tenant_id, $uid, $period_month, $period_year, $rent_amount, $charges_amount, $payment_date, $payment_mode, $notes]);
             $receipt_id = (int)db()->lastInsertId();
             flash('success', 'Quittance créée avec succès.');
-            redirect('/pages/receipt_download.php?id=' . $receipt_id);
+            redirect('/pages/receipt_download.php?id=' . $receipt_id . '&action=pdf');
         } catch (PDOException $e) {
             if ($e->getCode() === '23000') {
                 $errors[] = 'Une quittance existe déjà pour cet appartement, ce locataire et cette période.';
@@ -226,18 +226,21 @@ const tenantData = <?= json_encode(array_map(fn($t) => [
 const preselectedTenant = <?= (int)$form['tenant_id'] ?>;
 
 function filterTenants() {
-    const flatId = parseInt(document.getElementById('flat_id').value) || 0;
-    const sel    = document.getElementById('tenant_id');
-    sel.innerHTML = '<option value="">— Choisir —</option>';
-    tenantData
-        .filter(t => !flatId || t.flat_id === flatId)
-        .forEach(t => {
-            const opt = document.createElement('option');
-            opt.value       = t.id;
-            opt.textContent = t.name;
-            if (t.id === preselectedTenant) opt.selected = true;
-            sel.appendChild(opt);
-        });
+    const flatId   = parseInt(document.getElementById('flat_id').value) || 0;
+    const sel      = document.getElementById('tenant_id');
+    const filtered = tenantData.filter(t => !flatId || t.flat_id === flatId);
+    sel.innerHTML  = '<option value="">— Choisir —</option>';
+    filtered.forEach(t => {
+        const opt = document.createElement('option');
+        opt.value       = t.id;
+        opt.textContent = t.name;
+        if (t.id === preselectedTenant) opt.selected = true;
+        sel.appendChild(opt);
+    });
+    // Auto-sélection si un seul locataire pour cet appartement
+    if (flatId && filtered.length === 1 && !preselectedTenant) {
+        sel.value = filtered[0].id;
+    }
 }
 filterTenants();
 </script>

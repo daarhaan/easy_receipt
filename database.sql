@@ -33,10 +33,11 @@ CREATE TABLE landlords (
 CREATE TABLE flats (
     id          INT AUTO_INCREMENT PRIMARY KEY,
     user_id     INT NOT NULL,
-    name        VARCHAR(100) NOT NULL,          -- Ex: "Appart T2 Rue Victor Hugo"
-    address     TEXT NOT NULL,
-    description TEXT,
-    created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    name          VARCHAR(100) NOT NULL,          -- Ex: "Appart T2 Rue Victor Hugo"
+    address       TEXT NOT NULL,
+    description   TEXT,
+    mandate_type  ENUM('proprietaire','mandataire') NOT NULL DEFAULT 'proprietaire',
+    created_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
@@ -85,7 +86,7 @@ INSERT INTO users (username, email, password, full_name, role)
 VALUES (
     'admin',
     'admin@example.com',
-    '$2y$12$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi',
+    '$2y$12$oNEt/lbwQqu6.9BNdWvOa.nfgtNq4OAPaJzQTHyCa.VoSDhOoO5jG',
     'Administrateur',
     'admin'
 );

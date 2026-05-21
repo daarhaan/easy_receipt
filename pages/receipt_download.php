@@ -12,7 +12,7 @@ $id = (int)($_GET['id'] ?? 0);
 
 $stmt = db()->prepare('
     SELECT r.*,
-        f.name AS flat_name, f.address AS flat_address,
+        f.name AS flat_name, f.address AS flat_address, f.mandate_type,
         CONCAT(t.first_name," ",t.last_name) AS tenant_name,
         l.name AS landlord_name, l.address AS landlord_address
     FROM receipts r
@@ -29,41 +29,51 @@ if (!$receipt) {
     redirect('/pages/receipts.php');
 }
 
-// Streaming PDF
+// ── Streaming PDF ──────────────────────────────────────────────────────────
 if (($_GET['action'] ?? '') === 'pdf') {
     if (empty($receipt['landlord_name'])) {
         flash('error', "Veuillez d'abord configurer votre profil bailleur pour générer le PDF.");
         redirect('/pages/profile.php');
     }
 
-    require_once __DIR__ . '/../pdf/generate_receipt.php';
-
-    $data = [
-        'landlord_name'    => $receipt['landlord_name'],
-        'landlord_address' => $receipt['landlord_address'],
-        'tenant_name'      => $receipt['tenant_name'],
-        'flat_address'     => $receipt['flat_address'],
-        'period_month'     => (int)$receipt['period_month'],
-        'period_year'      => (int)$receipt['period_year'],
-        'rent_amount'      => (float)$receipt['rent_amount'],
-        'charges_amount'   => (float)$receipt['charges_amount'],
-        'total_amount'     => (float)$receipt['total_amount'],
-        'payment_date'     => $receipt['payment_date'],
-        'payment_mode'     => $receipt['payment_mode'],
-        'notes'            => $receipt['notes'] ?? '',
-    ];
-
-    $filename = sprintf('quittance_%04d_%02d_%s.pdf',
-        $data['period_year'],
-        $data['period_month'],
+    $filename = sprintf('receipt_%d_%04d_%02d_%s.pdf',
+        $id,
+        $receipt['period_year'],
+        $receipt['period_month'],
         preg_replace('/[^a-z0-9]/', '_', strtolower($receipt['tenant_name']))
     );
+    $filepath = RECEIPTS_PATH . '/' . $filename;
 
-    stream_receipt_pdf($data, $filename);
+    // Servir depuis le cache si disponible
+    if (!file_exists($filepath)) {
+        require_once __DIR__ . '/../pdf/generate_receipt.php';
+        $data = [
+            'landlord_name'    => $receipt['landlord_name'],
+            'landlord_address' => $receipt['landlord_address'],
+            'tenant_name'      => $receipt['tenant_name'],
+            'flat_address'     => $receipt['flat_address'],
+            'period_month'     => (int)$receipt['period_month'],
+            'period_year'      => (int)$receipt['period_year'],
+            'rent_amount'      => (float)$receipt['rent_amount'],
+            'charges_amount'   => (float)$receipt['charges_amount'],
+            'total_amount'     => (float)$receipt['total_amount'],
+            'payment_date'     => $receipt['payment_date'],
+            'payment_mode'     => $receipt['payment_mode'],
+            'notes'            => $receipt['notes'] ?? '',
+            'mandate_type'     => $receipt['mandate_type'] ?? 'proprietaire',
+        ];
+        generate_receipt_pdf($data, 'F', $filename);
+        db()->prepare('UPDATE receipts SET pdf_filename = ? WHERE id = ?')->execute([$filename, $id]);
+    }
+
+    header('Content-Type: application/pdf');
+    header('Content-Disposition: inline; filename="' . $filename . '"');
+    header('Content-Length: ' . filesize($filepath));
+    readfile($filepath);
     exit;
 }
 
-// Page de visualisation
+// ── Page de visualisation ──────────────────────────────────────────────────
 $page_title  = 'Quittance — ' . french_month((int)$receipt['period_month'], (int)$receipt['period_year']);
 $current_nav = 'receipts';
 $flash       = get_flash();
@@ -84,9 +94,18 @@ require_once __DIR__ . '/../includes/header.php';
 
 <div class="page-header">
   <h1>Quittance &mdash; <?= e(french_month((int)$receipt['period_month'], (int)$receipt['period_year'])) ?></h1>
-  <?php if ($receipt['landlord_name']): ?>
-  <a href="?id=<?= $id ?>&action=pdf" class="btn btn-primary" target="_blank">&#128196; T&eacute;l&eacute;charger le PDF</a>
-  <?php endif ?>
+  <div style="display:flex;gap:.5rem">
+    <?php if ($receipt['landlord_name']): ?>
+    <a href="?id=<?= $id ?>&action=pdf" class="btn btn-primary" target="_blank">&#128196; T&eacute;l&eacute;charger le PDF</a>
+    <?php endif ?>
+    <form method="post" action="/pages/receipts.php"
+          onsubmit="return confirm('Supprimer cette quittance et son PDF ?')">
+      <input type="hidden" name="action" value="delete">
+      <input type="hidden" name="id" value="<?= $id ?>">
+      <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+      <button type="submit" class="btn btn-danger">Supprimer</button>
+    </form>
+  </div>
 </div>
 
 <div class="card" style="max-width:620px">

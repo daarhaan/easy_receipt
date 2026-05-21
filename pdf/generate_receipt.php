@@ -85,8 +85,9 @@ function generate_receipt_pdf(array $data, string $output = 'F', string $filenam
     $y_parties = $pdf->GetY();
 
     // Bailleur
+    $bail_label = (($data['mandate_type'] ?? 'proprietaire') === 'mandataire') ? 'MANDATAIRE' : 'BAILLEUR';
     $pdf->SetXY(20, $y_parties);
-    $pdf->Cell($col_w, 6, 'BAILLEUR', 0, 1);
+    $pdf->Cell($col_w, 6, $bail_label, 0, 1);
     $pdf->SetFont('helvetica', '', 10);
     $pdf->SetX(20);
     $pdf->MultiCell($col_w, 5, $data['landlord_name'] . "\n" . $data['landlord_address'], 0, 'L');
@@ -137,14 +138,19 @@ function generate_receipt_pdf(array $data, string $output = 'F', string $filenam
     $d = DateTime::createFromFormat('Y-m-d', $data['payment_date']);
     $date_fr = $d ? $d->format('d/m/Y') : $data['payment_date'];
 
+    $is_mandataire = ($data['mandate_type'] ?? 'proprietaire') === 'mandataire';
+    $signataire = $is_mandataire
+        ? "Le mandataire soussigné, agissant au nom et pour le compte du propriétaire,"
+        : "Le bailleur soussigné";
+
     $pdf->MultiCell(0, 6,
-        "Le bailleur soussigné déclare avoir reçu de " . $data['tenant_name'] .
+        $signataire . " déclare avoir reçu de " . $data['tenant_name'] .
         " la somme de " . money($data['total_amount']) .
         " au titre du loyer et des charges du logement ci-dessus désigné pour la période de " . $period_label .
         ", et lui en donne quittance, sous réserve de tous droits." .
         "\n\nDate de paiement : " . $date_fr .
         "\nMode de paiement : " . $data['payment_mode'],
-        0, 'J'
+        0, 'L'
     );
 
     // Notes éventuelles
@@ -171,6 +177,7 @@ function generate_receipt_pdf(array $data, string $output = 'F', string $filenam
     $pdf->Cell(80, 5, '(signature)', 0, 1, 'R');
 
     // ── Pied de page légal ─────────────────────────────────────────────────────
+    $pdf->SetAutoPageBreak(false);
     $pdf->SetY(-25);
     $pdf->SetFont('helvetica', 'I', 8);
     $pdf->SetTextColor(150, 150, 150);

@@ -24,26 +24,27 @@ if ($id) {
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrf_check();
-    $name    = trim($_POST['name'] ?? '');
-    $address = trim($_POST['address'] ?? '');
-    $desc    = trim($_POST['description'] ?? '');
+    $name         = trim($_POST['name'] ?? '');
+    $address      = trim($_POST['address'] ?? '');
+    $desc         = trim($_POST['description'] ?? '');
+    $mandate_type = $_POST['mandate_type'] === 'mandataire' ? 'mandataire' : 'proprietaire';
 
     if (!$name)    $errors[] = 'Le nom est obligatoire.';
     if (!$address) $errors[] = "L'adresse est obligatoire.";
 
     if (empty($errors)) {
         if ($id) {
-            db()->prepare('UPDATE flats SET name=?, address=?, description=? WHERE id=? AND user_id=?')
-               ->execute([$name, $address, $desc, $id, $uid]);
+            db()->prepare('UPDATE flats SET name=?, address=?, description=?, mandate_type=? WHERE id=? AND user_id=?')
+               ->execute([$name, $address, $desc, $mandate_type, $id, $uid]);
             flash('success', 'Appartement modifié.');
         } else {
-            db()->prepare('INSERT INTO flats (user_id, name, address, description) VALUES (?,?,?,?)')
-               ->execute([$uid, $name, $address, $desc]);
+            db()->prepare('INSERT INTO flats (user_id, name, address, description, mandate_type) VALUES (?,?,?,?,?)')
+               ->execute([$uid, $name, $address, $desc, $mandate_type]);
             flash('success', 'Appartement ajouté.');
         }
         redirect('/pages/flats.php');
     }
-    $flat = ['name' => $name, 'address' => $address, 'description' => $desc];
+    $flat = ['name' => $name, 'address' => $address, 'description' => $desc, 'mandate_type' => $mandate_type];
 }
 
 $page_title  = $id ? 'Modifier un appartement' : 'Nouvel appartement';
@@ -83,6 +84,21 @@ require_once __DIR__ . '/../includes/header.php';
         <label for="description">Description (optionnelle)</label>
         <textarea id="description" name="description"
                   placeholder="Notes internes..."><?= e($flat['description'] ?? '') ?></textarea>
+      </div>
+      <div class="form-group full">
+        <label>Qualit&eacute; du bailleur</label>
+        <div style="display:flex;gap:1.5rem;margin-top:.25rem">
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-weight:400">
+            <input type="radio" name="mandate_type" value="proprietaire"
+              <?= ($flat['mandate_type'] ?? 'proprietaire') === 'proprietaire' ? 'checked' : '' ?>>
+            Propri&eacute;taire
+          </label>
+          <label style="display:flex;align-items:center;gap:.4rem;cursor:pointer;font-weight:400">
+            <input type="radio" name="mandate_type" value="mandataire"
+              <?= ($flat['mandate_type'] ?? '') === 'mandataire' ? 'checked' : '' ?>>
+            Mandataire
+          </label>
+        </div>
       </div>
     </div>
     <div style="display:flex;gap:.75rem;margin-top:1.5rem">

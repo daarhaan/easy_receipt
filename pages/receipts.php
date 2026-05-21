@@ -8,6 +8,23 @@ session_init();
 $user = require_auth();
 $uid  = $user['id'];
 
+// Suppression
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
+    csrf_check();
+    $del_id = (int)($_POST['id'] ?? 0);
+    $r = db()->prepare('SELECT pdf_filename FROM receipts WHERE id = ? AND user_id = ?');
+    $r->execute([$del_id, $uid]);
+    $row = $r->fetch();
+    if ($row) {
+        if ($row['pdf_filename'] && file_exists(RECEIPTS_PATH . '/' . $row['pdf_filename'])) {
+            unlink(RECEIPTS_PATH . '/' . $row['pdf_filename']);
+        }
+        db()->prepare('DELETE FROM receipts WHERE id = ? AND user_id = ?')->execute([$del_id, $uid]);
+        flash('success', 'Quittance supprimée.');
+    }
+    redirect('/pages/receipts.php');
+}
+
 // Filtres
 $filter_flat  = (int)($_GET['flat_id'] ?? 0);
 $filter_year  = (int)($_GET['year']    ?? 0);
@@ -119,7 +136,15 @@ require_once __DIR__ . '/../includes/header.php';
         <td><?= money((float)$r['charges_amount']) ?></td>
         <td><strong><?= money((float)$r['total_amount']) ?></strong></td>
         <td><?= french_date($r['payment_date']) ?></td>
-        <td><a href="/pages/receipt_download.php?id=<?= $r['id'] ?>" class="btn btn-ghost btn-sm">PDF</a></td>
+        <td style="white-space:nowrap">
+          <a href="/pages/receipt_download.php?id=<?= $r['id'] ?>&action=pdf" class="btn btn-ghost btn-sm" target="_blank">PDF</a>
+          <form method="post" style="display:inline" onsubmit="return confirm('Supprimer cette quittance ?')">
+            <input type="hidden" name="action" value="delete">
+            <input type="hidden" name="id" value="<?= $r['id'] ?>">
+            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
+          </form>
+        </td>
       </tr>
       <?php endforeach ?>
       </tbody>
