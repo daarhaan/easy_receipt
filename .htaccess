@@ -1,0 +1,38 @@
+# ============================================================
+# Quittances de Loyer — Configuration Apache / OVH
+# ============================================================
+
+# Protéger les dossiers sensibles
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^includes/        - [F,L]
+  RewriteRule ^receipts_storage/ - [F,L]
+  RewriteRule ^pdf/             - [F,L]
+</IfModule>
+
+# Masquer les erreurs PHP côté navigateur
+<IfModule mod_php.c>
+  php_flag  display_errors Off
+  php_value error_reporting 0
+</IfModule>
+
+# Charset par défaut
+AddDefaultCharset UTF-8
+
+# Cache pour les assets statiques (24h)
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js|woff2?|ttf|png|jpg|jpeg|ico|svg)$">
+    Header set Cache-Control "max-age=86400, public"
+  </FilesMatch>
+</IfModule>
+
+# Empêcher le listing des répertoires
+Options -Indexes
+
+# Protection XSS et clickjacking basique
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>

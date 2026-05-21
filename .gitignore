@@ -1,0 +1,22 @@
+# Dépendances Composer
+vendor/
+
+# PDFs générés
+receipts_storage/*.pdf
+
+# CSS dupliqué à la racine (utiliser assets/css/app.css)
+app.css
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+*.log
+*.swp
+*.swo
+*.bak
+
+# IDE
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
