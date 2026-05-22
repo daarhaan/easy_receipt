@@ -7,7 +7,7 @@ Gestion multi-appartements, multi-locataires, génération PDF, historique.
 
 ## Fonctionnalités
 
-- Connexion sécurisée par identifiant / mot de passe
+- Connexion sécurisée par identifiant / mot de passe (+ double authentification TOTP optionnelle)
 - Gestion des appartements (propriétaire ou mandataire)
 - Gestion des locataires par appartement
 - Création et historique des quittances
@@ -68,19 +68,21 @@ define('DB_NAME', 'rent_receipts');
 define('BASE_URL', 'http://easy_receipt.test');
 ```
 
-### 6. Installer TCPDF
+### 6. Installer les dépendances
 
 Depuis le dossier du projet :
 
 ```bash
-C:\laragon\bin\php\php-x.x.x\php.exe C:\laragon\bin\composer\composer.phar require tecnickcom/tcpdf
+C:\laragon\bin\php\php-x.x.x\php.exe C:\laragon\bin\composer\composer.phar install
 ```
 
 Ou si Composer est dans votre PATH :
 
 ```bash
-composer require tecnickcom/tcpdf
+composer install
 ```
+
+Cela installe TCPDF (génération PDF) et robthree/twofactorauth (2FA).
 
 ### 7. Permissions
 
@@ -116,11 +118,16 @@ Le PDF est généré automatiquement et mis en cache.
 ### 5. Télécharger un PDF
 Cliquez sur **PDF** dans n'importe quelle liste de quittances — s'ouvre dans un nouvel onglet.
 
+### 6. Activer la double authentification (2FA)
+**Mon profil → Double authentification → Activer la 2FA**  
+Scannez le QR code avec Google Authenticator, Authy ou toute application TOTP, puis confirmez avec le code généré.  
+À la prochaine connexion, un code à 6 chiffres sera demandé en plus du mot de passe.
+
 ---
 
 ## Déploiement sur OVH
 
-1. Uploadez tous les fichiers via FTP (sauf `vendor/` — relancez `composer install` sur le serveur)
+1. Uploadez tous les fichiers via FTP (sauf `vendor/` — relancez `composer install` sur le serveur, installe TCPDF + robthree/twofactorauth)
 2. Importez `database.sql` via phpMyAdmin
 3. Modifiez `config.php` avec les identifiants de production
 4. Vérifiez que `receipts_storage/` est accessible en écriture par Apache
