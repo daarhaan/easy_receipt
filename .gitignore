@@ -16,6 +16,9 @@ Thumbs.db
 *.swo
 *.bak
 
+# PHPUnit
+.phpunit.result.cache
+
 # IDE
 .vscode/
 .idea/
