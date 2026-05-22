@@ -10,14 +10,14 @@ define('APP_VERSION', '1.0.0');
 // --- Base de données -----------------------------------------------------------
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'rent_receipts');
-define('DB_USER', 'votre_user_bdd');      // ← à modifier
-define('DB_PASS', 'votre_mot_de_passe'); // ← à modifier
+define('DB_USER', 'root');
+define('DB_PASS', '');
 define('DB_CHARSET', 'utf8mb4');
 
 // --- Chemins ------------------------------------------------------------------
 define('ROOT_PATH',     __DIR__);
 define('RECEIPTS_PATH', ROOT_PATH . '/receipts_storage');
-define('BASE_URL',      'https://votre-domaine.com'); // ← à modifier
+define('BASE_URL',      'http://localhost/easy_receipt');
 
 // --- Session ------------------------------------------------------------------
 define('SESSION_LIFETIME', 3600 * 8); // 8 heures
@@ -29,3 +29,8 @@ date_default_timezone_set('Europe/Paris');
 // --- Erreurs (désactivez en production) ---------------------------------------
 ini_set('display_errors', 0);
 error_reporting(E_ALL);
+
+// --- Autoload Composer --------------------------------------------------------
+if (file_exists(__DIR__ . '/vendor/autoload.php')) {
+    require_once __DIR__ . '/vendor/autoload.php';
+}

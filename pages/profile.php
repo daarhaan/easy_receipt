@@ -4,6 +4,9 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/db.php';
 require_once __DIR__ . '/../includes/helpers.php';
 
+use RobThree\Auth\TwoFactorAuth;
+use RobThree\Auth\Providers\Qr\QRServerProvider;
+
 session_init();
 $user = require_auth();
 $uid  = $user['id'];
@@ -55,6 +58,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $u['email']            = $email;
             flash('success', 'Compte mis à jour.');
             redirect('/pages/profile.php');
+        }
+    }
+
+    if ($section === '2fa_init') {
+        // Générer un nouveau secret temporaire et le stocker en session
+        $tfa = get_tfa();
+        $secret = $tfa->createSecret();
+        $_SESSION['_2fa_setup_secret'] = $secret;
+        redirect('/pages/profile.php#2fa');
+    }
+
+    if ($section === '2fa_confirm') {
+        // Activer la 2FA après vérification du code
+        $secret = $_SESSION['_2fa_setup_secret'] ?? '';
+        $code   = preg_replace('/\s+/', '', $_POST['totp_code'] ?? '');
+        if (!$secret) {
+            $errors[] = 'Session expirée. Recommencez l\'activation.';
+        } elseif (!get_tfa()->verifyCode($secret, $code)) {
+            $errors[] = 'Code invalide. Vérifiez l\'heure de votre téléphone et réessayez.';
+        } else {
+            db()->prepare('UPDATE users SET totp_secret = ?, totp_enabled = 1 WHERE id = ?')
+               ->execute([$secret, $uid]);
+            unset($_SESSION['_2fa_setup_secret']);
+            $u['totp_enabled'] = 1;
+            flash('success', 'Double authentification activée.');
+            redirect('/pages/profile.php#2fa');
+        }
+    }
+
+    if ($section === '2fa_disable') {
+        $cur_pass = $_POST['current_password'] ?? '';
+        if (!password_verify($cur_pass, $u['password'])) {
+            $errors[] = 'Mot de passe incorrect.';
+        } else {
+            db()->prepare('UPDATE users SET totp_secret = NULL, totp_enabled = 0 WHERE id = ?')
+               ->execute([$uid]);
+            $u['totp_enabled'] = 0;
+            unset($_SESSION['_2fa_setup_secret']);
+            flash('success', 'Double authentification désactivée.');
+            redirect('/pages/profile.php#2fa');
         }
     }
 
@@ -172,6 +215,84 @@ require_once __DIR__ . '/../includes/header.php';
     </form>
   </div>
 
+</div>
+
+<!-- Double authentification (TOTP) -->
+<div class="card" style="max-width:900px;margin-top:1.5rem" id="2fa">
+  <h2 style="margin-bottom:.4rem">Double authentification (2FA)</h2>
+  <p style="color:var(--ink-light);font-size:.875rem;margin-bottom:1.5rem">
+    Protégez votre compte avec une application d'authentification (Google Authenticator, Authy, etc.).
+  </p>
+
+  <?php if (!empty($u['totp_enabled'])): ?>
+    <!-- 2FA activée -->
+    <div class="alert alert-success" style="margin-bottom:1.5rem">
+      ✓ La double authentification est <strong>activée</strong> sur ce compte.
+    </div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+      <input type="hidden" name="section" value="2fa_disable">
+      <div class="form-group" style="max-width:320px;margin-bottom:1rem">
+        <label for="2fa_cur_pass">Mot de passe actuel (confirmation)</label>
+        <input type="password" id="2fa_cur_pass" name="current_password"
+               required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-danger"
+              onclick="return confirm('Désactiver la double authentification ?')">
+        Désactiver la 2FA
+      </button>
+    </form>
+
+  <?php elseif (!empty($_SESSION['_2fa_setup_secret'])): ?>
+    <!-- Étape de configuration : QR code + vérification -->
+    <?php
+        $tfa    = get_tfa();
+        $secret = $_SESSION['_2fa_setup_secret'];
+        $label  = $u['username'] . ' (' . APP_NAME . ')';
+        try {
+            $qrDataUri = $tfa->getQRCodeImageAsDataUri($label, $secret);
+        } catch (\Throwable $e) {
+            $qrDataUri = '';
+        }
+    ?>
+    <p style="margin-bottom:1rem">
+      Scannez ce QR code avec votre application d'authentification, puis saisissez le code généré pour confirmer.
+    </p>
+    <?php if ($qrDataUri): ?>
+    <img src="<?= $qrDataUri ?>" alt="QR Code 2FA"
+         style="display:block;width:200px;height:200px;margin-bottom:1rem;border:1px solid var(--border);padding:8px;border-radius:8px">
+    <?php endif ?>
+    <p style="font-size:.85rem;color:var(--ink-light);margin-bottom:1.5rem">
+      Saisie manuelle — clé :
+      <code style="background:var(--cream);padding:.2rem .5rem;border-radius:4px;letter-spacing:.1em;font-size:.9rem">
+        <?= chunk_split(e($secret), 4, ' ') ?>
+      </code>
+    </p>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+      <input type="hidden" name="section" value="2fa_confirm">
+      <div class="form-group" style="max-width:220px;margin-bottom:1rem">
+        <label for="totp_confirm_code">Code de vérification (6 chiffres)</label>
+        <input type="text" id="totp_confirm_code" name="totp_code"
+               inputmode="numeric" pattern="[0-9 ]{6,7}" maxlength="7"
+               placeholder="000 000" required autocomplete="one-time-code"
+               style="font-size:1.3rem;letter-spacing:.2em;text-align:center">
+      </div>
+      <button type="submit" class="btn btn-primary">Confirmer et activer</button>
+      <a href="/pages/profile.php#2fa" style="margin-left:1rem;color:var(--ink-light);font-size:.875rem">Annuler</a>
+    </form>
+
+  <?php else: ?>
+    <!-- 2FA désactivée, proposer l'activation -->
+    <div class="alert alert-info" style="margin-bottom:1.5rem">
+      La double authentification n'est pas activée.
+    </div>
+    <form method="post">
+      <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+      <input type="hidden" name="section" value="2fa_init">
+      <button type="submit" class="btn btn-primary">Activer la 2FA</button>
+    </form>
+  <?php endif ?>
 </div>
 
 <?php require_once __DIR__ . '/../includes/footer.php' ?>
